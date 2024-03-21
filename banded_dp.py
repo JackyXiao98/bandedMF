@@ -4,6 +4,7 @@ from scipy import optimize
 from scipy import sparse
 from scipy.sparse.linalg import spsolve_triangular
 from scipy.linalg.lapack import dpotrf, dpotri
+from utils import *
 
 
 class BandedConvex:
@@ -20,8 +21,15 @@ class BandedConvex:
         tri = np.zeros((self.n, self.n))
         tri[self._mask] = self._params
         X = np.eye(self.n) + tri + tri.T
+        self.X = X
         # A = np.linalg.cholesky(X).T
         return X
+
+    def strategy_matrix(self):
+        X = self.X
+        A = np.linalg.cholesky(X).T
+        self.A = A
+        return A
 
     def _set_workload(self, W):
         # self.V = W.gram().dense_matrix().astype(float)
@@ -75,10 +83,31 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 6
-    b = 2
+    n = 90
+    b = 20
+    np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
     temp = BandedConvex(n, b)
     fun = temp.optimize(W)
     X = temp.strategy_pmat()
-    print("obj: ", fun)
+    rot = rotation_matrix(n)
+    X_rot = rot @ X @ rot
+    A_rot = np.linalg.cholesky(X_rot).T
+    A = rot @ A_rot @ rot
+    print("strategy matrix:\n", A)
+    print("pcost matrix:\n", X)
+
+    n1 = 100
+    b = 20
+    W1 = np.tril(np.ones((n1, n1)), k=0)
+    temp1 = BandedConvex(n1, b)
+    fun1 = temp1.optimize(W1)
+    X1 = temp1.strategy_pmat()
+    rot1 = rotation_matrix(n1)
+    X_rot1 = rot1 @ X1 @ rot1
+    A_rot1 = np.linalg.cholesky(X_rot1).T
+    A1 = rot1 @ A_rot1 @ rot1
+    print("strategy matrix:\n", A1)
+    print("pcost matrix:\n", X1)
+
+
