@@ -9,7 +9,28 @@ def rotation_matrix(n):
     return mat
 
 
+def moving_average(arr, window_size=5):
+    padded_arr = np.pad(arr, (window_size // 2, window_size // 2), mode='edge')
+    result = np.convolve(padded_arr, np.ones(window_size) / window_size, mode='valid')
+    return result
+
+
+def average_matrix(mat, b, k):
+    """For each diagonal, use moving average to get a new array."""
+    res = np.copy(mat)
+    for i in range(b):
+        vec = np.diag(mat, k=-i)
+        avg_vec = moving_average(vec, k)
+        m = len(vec)
+        # print("i = ", i, vec)
+        for j in range(m):
+            res[j+i, j] = avg_vec[j]
+    return res
+
+
 if __name__ == "__main__":
-    n = 4
-    mat = rotation_matrix(n)
-    print(mat)
+    np.random.seed(0)
+    mat = np.random.random([5, 5])
+    res = average_matrix(mat, 3, 3)
+    print("mat: \n", mat)
+    print("res: \n", res)

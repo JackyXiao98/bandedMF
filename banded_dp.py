@@ -83,8 +83,8 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 90
-    b = 20
+    n = 1000
+    b = 100
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
     temp = BandedConvex(n, b)
@@ -96,18 +96,26 @@ if __name__ == "__main__":
     A = rot @ A_rot @ rot
     print("strategy matrix:\n", A)
     print("pcost matrix:\n", X)
+    C = W @ np.linalg.pinv(A)
+    var = np.trace(C @ C.T)
 
-    n1 = 100
-    b = 20
-    W1 = np.tril(np.ones((n1, n1)), k=0)
-    temp1 = BandedConvex(n1, b)
-    fun1 = temp1.optimize(W1)
-    X1 = temp1.strategy_pmat()
-    rot1 = rotation_matrix(n1)
-    X_rot1 = rot1 @ X1 @ rot1
-    A_rot1 = np.linalg.cholesky(X_rot1).T
-    A1 = rot1 @ A_rot1 @ rot1
-    print("strategy matrix:\n", A1)
-    print("pcost matrix:\n", X1)
+    A_avg = average_matrix(A, b, k=10)
+    p_mat_avg = A_avg.T @ A_avg
+    p_cost_avg = np.max(np.diag(p_mat_avg))
+    C_avg = W @ np.linalg.pinv(A_avg)
+    var_avg = np.trace(C_avg @ C_avg.T)
+
+    # n1 = 100
+    # b = 20
+    # W1 = np.tril(np.ones((n1, n1)), k=0)
+    # temp1 = BandedConvex(n1, b)
+    # fun1 = temp1.optimize(W1)
+    # X1 = temp1.strategy_pmat()
+    # rot1 = rotation_matrix(n1)
+    # X_rot1 = rot1 @ X1 @ rot1
+    # A_rot1 = np.linalg.cholesky(X_rot1).T
+    # A1 = rot1 @ A_rot1 @ rot1
+    # print("strategy matrix:\n", A1)
+    # print("pcost matrix:\n", X1)
 
 
