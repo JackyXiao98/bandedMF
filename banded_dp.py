@@ -83,7 +83,7 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 10
+    n = 4
     b = 4
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
@@ -98,6 +98,7 @@ if __name__ == "__main__":
     print("pcost matrix:\n", X)
     C = W @ np.linalg.pinv(A)
     var = np.trace(C @ C.T)
+    print("sum of var: ", var)
 
     A_avg = average_matrix(A, b, k=10)
     p_mat_avg = A_avg.T @ A_avg
