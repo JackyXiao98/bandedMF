@@ -28,6 +28,16 @@ def average_matrix(mat, b, k):
     return res
 
 
+def prefix_sum_matrix(n):
+    """
+    Create the lower triangular matrix with elements of 1.
+
+    Return as the basis matrix.
+    """
+    mat_w = np.tril(np.ones([n, n]))
+    return mat_w
+
+
 if __name__ == "__main__":
     np.random.seed(0)
     mat = np.random.random([5, 5])

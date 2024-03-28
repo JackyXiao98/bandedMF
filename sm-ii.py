@@ -284,114 +284,26 @@ class matrix_query:
         vec_grad = np.reshape(grad, [-1], 'F')
         return vec_grad
 
-    def hess_times_p(self, vec_p):
-        """Calculate H*p."""
-        mat_p = np.reshape(vec_p, [self.size_n, self.size_n], 'F')
+    def _loss_and_grad(self, params):
+        self.cov = np.reshape(params, [self.size_n, self.size_n], 'F')
+        if not is_pos_def(self.cov):
+            self.cov = (self.cov + self.cov.T) / 2.0
+        self.invcov = np.linalg.solve(self.cov, self.mat_id)
+        self.f_var = self.func_var()
+        self.f_pcost = self.func_pcost()
 
-        # Calculate kron(Vmat, Vmat)*p
-        const_k = self.param_k * np.max(self.f_var)
-        exp_k = np.exp(self.param_k*self.f_var - const_k)
-        h_var_1 = self.g_var @ mat_p @ self.g_var
-        # Calculate kron(g_var, g_var)*p
-        f_var_p = ((self.mat_index @ mat_p)*self.mat_index).sum(axis=1)
-        coef = exp_k / self.var_bound**2 * f_var_p
-        h_var_2 = (coef * self.mat_index.T) @ self.mat_index
-
-        # Calculate kron(Bmat, Bmat)*p
-        const_t = np.max(self.param_t * self.f_pcost)
-        exp_t = np.exp(self.param_t*self.f_pcost-const_t)
-        g_pcost_p = self.g_pcost @ mat_p
-        h_pcost_1 = g_pcost_p @ self.g_pcost
-        # Calculate kron(g_pcost, p_cost)*p
-        f_pcost_p = ((self.mat_bix.T@mat_p)*self.mat_bix.T).sum(axis=1)
-        h_pcost_21 = (exp_t * f_pcost_p * self.mat_bix) @ self.mat_bix.T
-        mat_mul = -g_pcost_p @ self.invcov
-        h_pcost_22 = mat_mul + mat_mul.T
-        h_pcost_2 = h_pcost_21 + h_pcost_22
-
-        coef_k1 = -(self.param_k/np.sum(exp_k))**2
-        coef_k2 = self.param_k**2/np.sum(exp_k)
-        coef_t1 = -(self.param_t/np.sum(exp_t))**2
-        coef_t2 = self.param_t**2/np.sum(exp_t)
-        hess = h_var_1*coef_k1 + h_pcost_1*coef_t1 + \
-            h_pcost_2*coef_t2 + h_var_2*coef_k2
-        vec_d = np.reshape(hess, [-1], 'F')
-        return vec_d
-
-    def newton_direction(self):
-        """Calculate Newton's Direction."""
-        vec_v = np.zeros(self.size_n**2)
-        vec_r = -self.gradient
-        vec_p = vec_r
-        rr_old = vec_r.dot(vec_r)
-        for i in range(self.args.maxitercg):
-            hess_p = self.hess_times_p(vec_p)
-            p_dot_hp = vec_p.dot(hess_p)
-            if np.linalg.norm(p_dot_hp) < 1e-20:
-                print("divided by 0.")
-                break
-            param_a = rr_old/p_dot_hp
-            vec_v = vec_v + param_a * vec_p
-            vec_r = vec_r - param_a * hess_p
-            rr_new = vec_r.dot(vec_r)
-            if rr_new < self.args.theta:
-                break
-            param_b = rr_new/rr_old
-            vec_p = vec_r + param_b * vec_p
-            rr_old = rr_new
-        return vec_v, i
-
-    def step_size(self):
-        """Find proper step size."""
-        mat_old = self.cov
-        f_curr = self.obj()
-        f_last = f_curr
-        step = np.reshape(self.step, [self.size_n, self.size_n], 'F')
-        for k in range(self.args.maxiterls):
-            alpha = self.args.beta**(k)
-            self.cov = mat_old + alpha*step
-            if not is_pos_def(self.cov):
-                continue
-            self.invcov = np.linalg.solve(self.cov, self.mat_id)
-            self.f_var = self.func_var()
-            self.f_pcost = self.func_pcost()
-            f_curr = self.obj()
-            if f_curr < f_last + alpha*self.args.sigma*self.delta:
-                break
-        return f_curr, k
+        loss = self.obj()
+        g = self.derivative()
+        return loss, g  # G.flatten()
 
     def optimize(self):
-        """Optimization."""
-        for iters in range(self.args.maxiter):
-            self.gradient = self.derivative()
-            self.step, i = self.newton_direction()
-            self.delta = self.step.dot(self.gradient)
-            if self.delta >= 0:
-                self.step = -self.gradient
-                self.delta = self.step.dot(self.gradient)
-            if np.abs(self.delta) < self.args.NTTOL:
-                gap = (self.size_m+self.size_n)/self.param_t
-                if gap < self.args.TOL:
-                    break
-                self.param_t = self.args.MU*self.param_t
-                self.param_k = self.args.MU*self.param_t
-                print('update t: {0}'.format(self.param_t))
-            else:
-                fcurr, k = self.step_size()
-                print("iter:{0}, fobj:{1}, opt:{2}, cg:{3}, ls:{4}".
-                      format(iters, fcurr, self.delta, i, k))
+        # initialization
+        x = np.reshape(self.cov, [-1], 'F')
 
-        pcost = np.max(self.f_var)*np.max(self.f_pcost)
-        # pcost = 1
-        # print('pcost =', pcost)
-        # hb_strategy = hb_strategy_matrix(
-            # self.size_n, np.int(np.sqrt(self.size_n)))
-        # self.gm_var = gm_variance(self.mat_work, self.mat_id, pcost)
-        # self.hb_var = hb_variance(self.mat_work, hb_strategy, pcost)
-        #
-        # self.pcost = pcost
-        # self.gm = self.gm_var
-        # self.hm = self.hb_var
+        opts = {'maxcor': 1}
+        res = optimize.minimize(self._loss_and_grad, x, jac=True, method='L-BFGS-B', options=opts)
+        self._params = res.x
+        return res.fun
 
 
 def func_var(cov, mat_index):
@@ -413,7 +325,7 @@ def func_var(cov, mat_index):
 if __name__ == "__main__":
     np.set_printoptions(precision=3)
     np.random.seed(0)
-    k = 5
+    k = 10
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
