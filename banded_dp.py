@@ -83,10 +83,18 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 10
-    b = n
+    n = 50
+    b = 5
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
+
+    upper = 10
+    # diag = np.arange(0.0, upper, upper/n) + 1.0
+    diag = [1] * 40 + [upper] * 10
+    diag = np.array(diag)
+    # diag = np.ones(n)
+    W = np.diag(diag) @ W
+
     temp = BandedConvex(n, b)
     fun = temp.optimize(W)
     X = temp.strategy_pmat()
@@ -96,8 +104,9 @@ if __name__ == "__main__":
     A = rot @ A_rot @ rot
     # print("strategy matrix:\n", A)
     # print("pcost matrix:\n", X)
-    C = W @ np.linalg.pinv(A)
-    var = np.diag(C @ C.T)
+    L = W @ np.linalg.pinv(A)
+    L = np.diag(1.0/diag) @ L
+    var = np.diag(L @ L.T)
     print("sum of var: ", np.sum(var))
     print("max of var: ", np.max(var))
 
