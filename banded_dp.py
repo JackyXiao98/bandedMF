@@ -48,6 +48,8 @@ class BandedConvex:
         zz, info0 = dpotrf(X, False, False)
         iX, info1 = dpotri(zz)
         iX = np.triu(iX) + np.triu(iX, k=1).T
+
+        # if not psd, return a large loss
         if info0 != 0 or info1 != 0:
             # print('checkpt')
             return self._loss * 100, np.zeros_like(params)
@@ -83,16 +85,16 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 50
-    b = 5
+    n = 100
+    b = n
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
 
-    upper = 10
+    # upper = 10
     # diag = np.arange(0.0, upper, upper/n) + 1.0
-    diag = [1] * 40 + [upper] * 10
-    diag = np.array(diag)
-    # diag = np.ones(n)
+    # diag = [1] * 40 + [upper] * 10
+    # diag = np.array(diag)
+    diag = np.ones(n)
     W = np.diag(diag) @ W
 
     temp = BandedConvex(n, b)

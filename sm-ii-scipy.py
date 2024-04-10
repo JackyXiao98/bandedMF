@@ -34,6 +34,21 @@ from scipy.linalg.lapack import dpotrf, dpotri
 from utils import *
 
 
+"""
+Todo tasks
+
+* [Done] If not PSD, set a large loss, set the gradient to 0.
+* [Done] Iterative approximation, increase t for each round, set up a stopping condition
+* Reduce the number of parameters by half, use a mask, see HDMM solver.
+* Find proper initialization.
+* Replace the inverse function.
+* [Done] Choose different variance bounds.
+* Banded matrix, use masks.
+
+
+"""
+
+
 def configuration():
     """
     Return configuration parameters.
@@ -288,6 +303,13 @@ class matrix_query:
         self.cov = np.reshape(params, [self.size_n, self.size_n], 'F')
         if not is_pos_def(self.cov):
             self.cov = (self.cov + self.cov.T) / 2.0
+            self.invcov = np.linalg.solve(self.cov, self.mat_id)
+            self.f_var = self.func_var()
+            self.f_pcost = self.func_pcost()
+            loss = self.obj()
+            g = self.derivative()
+            return loss * 100, np.zeros_like(g)
+
         self.invcov = np.linalg.solve(self.cov, self.mat_id)
         self.f_var = self.func_var()
         self.f_pcost = self.func_pcost()
@@ -298,11 +320,22 @@ class matrix_query:
 
     def optimize(self):
         # initialization
-        x = np.reshape(self.cov, [-1], 'F')
+        # x = np.reshape(self.cov, [-1], 'F')
 
         opts = {'maxcor': 1}
-        res = optimize.minimize(self._loss_and_grad, x, jac=True, method='L-BFGS-B', options=opts)
-        self._params = res.x
+
+        for iters in range(100):
+            x = np.reshape(self.cov, [-1], 'F')
+            res = optimize.minimize(self._loss_and_grad, x, jac=True, method='L-BFGS-B', options=opts)
+            self._params = res.x
+
+            gap = (self.size_m + self.size_n) / self.param_t
+            if gap < self.args.TOL:
+                break
+            self.param_t = self.args.MU * self.param_t
+            self.param_k = self.args.MU * self.param_t
+            print('update t: {0}'.format(self.param_t))
+
         return res.fun
 
 
@@ -329,7 +362,10 @@ if __name__ == "__main__":
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
-    bound = np.ones(param_m)*1
+    # bound = np.ones(param_m)*1
+    upper = 3
+    diag = np.arange(0.0, upper, upper/k) + 1.0
+    bound = np.array(diag)[::-1]
 
     args = configuration()
     args.init_mat = 'id_index'
