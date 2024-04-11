@@ -362,7 +362,7 @@ if __name__ == "__main__":
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
-    # bound = np.ones(param_m)*1
+    bound = np.ones(param_m)*1
     upper = 3
     diag = np.arange(0.0, upper, upper/k) + 1.0
     bound = np.array(diag)[::-1]

@@ -90,11 +90,11 @@ if __name__ == "__main__":
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
 
-    # upper = 10
-    # diag = np.arange(0.0, upper, upper/n) + 1.0
+    upper = 3
+    diag = np.arange(0.0, upper, upper/n) + 1.0
     # diag = [1] * 40 + [upper] * 10
     # diag = np.array(diag)
-    diag = np.ones(n)
+    # diag = np.ones(n)
     W = np.diag(diag) @ W
 
     temp = BandedConvex(n, b)

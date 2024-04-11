@@ -5,7 +5,7 @@ from functools import reduce
 
 np.random.seed(23)
 np.set_printoptions(precision=3)
-vec_x = np.array([0, 2, 10, 0, 2, 0, 50, 0, 2, 0, 20, 1])
+vec_x = np.array([0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1])
 ls_ab = [np.eye(2), np.eye(2), np.ones([1, 3])]
 ls_bc = [np.ones([1, 2]), np.eye(2), np.eye(3)]
 ls_ac = [np.eye(2), np.ones([1, 2]), np.eye(3)]
