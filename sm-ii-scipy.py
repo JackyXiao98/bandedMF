@@ -277,6 +277,7 @@ class matrix_query:
         log_sum_t = np.log(np.sum(np.exp(self.param_t*self.f_pcost - const_t)))
         log_sum_k = np.log(np.sum(np.exp(self.param_k*self.f_var - const_k)))
         f_obj = const_t + log_sum_t + const_k + log_sum_k
+        return f_obj / self.param_t
 
     def derivative(self):
         """Calculate derivatives."""
@@ -334,6 +335,7 @@ class matrix_query:
             self.param_t = self.args.MU * self.param_t
             self.param_k = self.args.MU * self.param_t
             print('update t: {0}'.format(self.param_t))
+            print(self.cov)
 
         return res.fun
 
