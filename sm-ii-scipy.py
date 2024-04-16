@@ -335,6 +335,7 @@ class matrix_query:
             self.param_t = self.args.MU * self.param_t
             self.param_k = self.args.MU * self.param_t
             print('update t: {0}'.format(self.param_t))
+            # print(self.cov)
 
         return res.fun
 
@@ -358,7 +359,7 @@ def func_var(cov, mat_index):
 if __name__ == "__main__":
     np.set_printoptions(precision=3)
     np.random.seed(0)
-    k = 2
+    k = 200
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape

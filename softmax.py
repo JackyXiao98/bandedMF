@@ -413,7 +413,7 @@ def func_var(cov, mat_index):
 if __name__ == "__main__":
     np.set_printoptions(precision=3)
     np.random.seed(0)
-    k = 100
+    k = 2
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
