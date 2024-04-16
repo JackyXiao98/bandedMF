@@ -29,16 +29,25 @@ Mac = reduce(np.kron, ls_ac)
 yab = Mab @ vec_x + np.random.normal(size=Mab.shape[0])
 ybc = Mbc @ vec_x + np.random.normal(size=Mbc.shape[0])
 
-x = cp.Variable(vec_x.shape, nonneg=True)
+x = cp.Variable(vec_x.shape, nonneg=False)
 objective = cp.Minimize(cp.norm(Mab @ x - yab, 2) + cp.norm(Mbc @ x - ybc, 2))
 problem = cp.Problem(objective)
 problem.solve(solver=cp.ECOS)
-
-print("The optimal value for x is:", x.value)
-print("The L1 error for x is: ", np.linalg.norm(x.value-vec_x, 1))
 diff = Mac @ (x.value - vec_x)
 error = np.linalg.norm(diff, 1)
-print("The L1 error for non-negative lsq is: ", error)
+
+xn = cp.Variable(vec_x.shape, nonneg=True)
+objective_n = cp.Minimize(cp.norm(Mab @ xn - yab, 2) + cp.norm(Mbc @ xn - ybc, 2))
+problem_n = cp.Problem(objective_n)
+problem_n.solve(solver=cp.ECOS)
+diff = Mac @ (xn.value - vec_x)
+error_n = np.linalg.norm(diff, 1)
+
+print("true x:\n", vec_x)
+print("ordinary lsq x:\n", x.value)
+print("NNLS x:\n", xn.value)
+print("The L1 error for ordinary lsq is: ", error)
+print("The L1 error for NNLS is: ", error_n)
 
 ls_sum = [np.ones([1, 2]), np.ones([1, 2]), np.ones([1, 3])]
 ls_res_a = [np.array([1, -1]), np.ones([1, 2]), np.ones([1, 3])]
@@ -60,7 +69,7 @@ Rabc = reduce(np.kron, ls_res_abc)
 
 y_sum = np.sum(vec_x) + np.sqrt(2.4) * np.random.normal(size=1)
 y_res_a = Ra @ vec_x + np.sqrt(2) * np.random.normal(size=Ra.shape[0])
-y_res_b = Rb @ vec_x + np.sqrt(2) * np.random.normal(size=Rb.shape[0])
+y_res_b = Rb @ vec_x + np.sqrt(1.2) * np.random.normal(size=Rb.shape[0])
 y_res_c = Rc @ vec_x + np.sqrt(2) * np.random.normal(size=Rc.shape[0])
 y_res_ab = Rab @ vec_x + np.sqrt(1) * np.random.normal(size=Rab.shape[0])
 y_res_bc = Rbc @ vec_x + np.sqrt(1) * np.random.normal(size=Rbc.shape[0])
@@ -70,7 +79,7 @@ y_ac_recon = Mac @ np.linalg.pinv(Rsum) @ y_sum + \
              Mac @ np.linalg.pinv(Rc) @ y_res_c
 y_ac = Mac @ vec_x
 recon_error = np.linalg.norm(y_ac_recon - y_ac, 1)
-print("The L1 error for lsq recon is: ", recon_error)
+print("The L1 error for ordinary lsq recon is: ", recon_error)
 
 
 y_res_ac = cp.Variable(Rac.shape[0])
@@ -92,4 +101,4 @@ y_ac_recon_non_neg = Mac @ np.linalg.pinv(Rsum) @ y_sum + \
                Mac @ np.linalg.pinv(Rc) @ y_res_c + \
                Mac @ np.linalg.pinv(Rac) @ y_res_ac.value
 recon_error_non_neg = np.linalg.norm(y_ac_recon_non_neg - y_ac, 1)
-print("The L1 error for non neg y-abc recon is: ", recon_error_non_neg)
+print("The L1 error for NNLS y-abc recon is: ", recon_error_non_neg)
