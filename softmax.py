@@ -262,7 +262,7 @@ class matrix_query:
         log_sum_t = np.log(np.sum(np.exp(self.param_t*self.f_pcost - const_t)))
         log_sum_k = np.log(np.sum(np.exp(self.param_k*self.f_var - const_k)))
         f_obj = const_t + log_sum_t + const_k + log_sum_k
-        return f_obj
+        return f_obj / self.param_t
 
     def derivative(self):
         """Calculate derivatives."""
@@ -376,6 +376,8 @@ class matrix_query:
                 self.param_t = self.args.MU*self.param_t
                 self.param_k = self.args.MU*self.param_t
                 print('update t: {0}'.format(self.param_t))
+                print(self.cov)
+
             else:
                 fcurr, k = self.step_size()
                 print("iter:{0}, fobj:{1}, opt:{2}, cg:{3}, ls:{4}".
@@ -425,15 +427,15 @@ if __name__ == "__main__":
     args.maxitercg = 5
     args.theta = 1e-8
     args.sigma = 1e-8
-    args.NNTOL = 1e-5
-    args.TOL = 1e-5
+    args.NTTOL = 1e-5
+    args.TOL = 1e-3
 
     index = work
     basis = np.eye(param_n)
 
     mat_opt = matrix_query(args, basis, index, bound)
     mat_opt.optimize()
-    mat_cov = mat_opt.cov/np.max(mat_opt.f_var)
+    mat_cov = mat_opt.cov
 
     pmat_CA = np.linalg.inv(mat_cov)
     # ensure that the privacy cost is 1

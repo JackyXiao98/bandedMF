@@ -277,7 +277,7 @@ class matrix_query:
         log_sum_t = np.log(np.sum(np.exp(self.param_t*self.f_pcost - const_t)))
         log_sum_k = np.log(np.sum(np.exp(self.param_k*self.f_var - const_k)))
         f_obj = const_t + log_sum_t + const_k + log_sum_k
-        return f_obj
+        return f_obj / self.param_t
 
     def derivative(self):
         """Calculate derivatives."""
@@ -374,7 +374,7 @@ if __name__ == "__main__":
     args.maxitercg = 5
     args.theta = 1e-8
     args.sigma = 1e-8
-    args.NNTOL = 1e-5
+    args.NTTOL = 1e-5
     args.TOL = 1e-5
 
     index = work
