@@ -85,8 +85,8 @@ class BandedConvex:
 
 
 if __name__ == "__main__":
-    n = 10
-    b = 5
+    n = 100
+    b = 9
     np.set_printoptions(precision=3)
     W = np.tril(np.ones((n, n)), k=0)
 

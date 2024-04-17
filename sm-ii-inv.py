@@ -31,7 +31,6 @@ from scipy import optimize
 from scipy import sparse
 from scipy.sparse.linalg import spsolve_triangular
 from scipy.linalg.lapack import dpotrf, dpotri
-from utils import *
 
 
 """
@@ -226,8 +225,8 @@ class matrix_query:
         if self.args.init_mat == 'id_index':
             diag = np.diag(self.mat_index @ self.mat_index.T)
             sigma = np.min(self.var_bound/diag)
-            self.cov = self.mat_id*self.size_n*sigma
-        self.invcov = np.linalg.solve(self.cov, self.mat_id)
+            self.inv_X = self.mat_id*self.size_n*sigma
+        self.X = np.linalg.solve(self.inv_X, self.mat_id)
         self.f_var = self.func_var()
         self.f_pcost = self.func_pcost()
 
@@ -241,9 +240,8 @@ class matrix_query:
         self.mat_index : the index matrix
         self.cov : the co-variance matrix
         """
-        # d = np.diag(self.mat_index @ self.cov @ self.mat_index.T)
-        vec_d = ((self.mat_index @ self.cov) * self.mat_index).sum(axis=1)
-        # vec_d = np.diag(self.cov)
+        # vec_d = np.diag(self.mat_index @ self.inv_X @ self.mat_index.T)
+        vec_d = ((self.mat_index @ self.inv_X) * self.mat_index).sum(axis=1)
         return vec_d / self.var_bound
 
     def func_pcost(self):
@@ -255,10 +253,9 @@ class matrix_query:
         B : the basis matrix
         self.invcov : the inverse of the co-variance matrix X
         """
-        # d = np.diag(self.mat_basis.T @ self.invcov @ self.mat_basis)
-        vec_d = ((self.mat_basis.T @ self.invcov) * self.mat_basis.T).sum(
-            axis=1)
-        # vec_d = np.triu(self.invcov.cumsum(axis=1)).sum(axis=0)
+        # vec_d = np.diag(self.mat_basis.T @ self.X @ self.mat_basis)
+        # vec_d = ((self.mat_basis.T @ self.X) * self.mat_basis.T).sum(axis=1)
+        vec_d = np.diag(self.X)
         return vec_d
 
     def obj(self):
@@ -267,11 +264,9 @@ class matrix_query:
 
         Parameters
         ----------
-        X : co-variance matrix
         self.param_t : privacy cost approximation parameter
-        self.param_k : variance approximation parameter
-        c : variance bound, self.mat_index: index matrix, B: basis matrix
         """
+        self.param_k = self.param_t
         const_t = self.param_t*np.max(self.f_pcost)
         const_k = self.param_k*np.max(self.f_var)
         log_sum_t = np.log(np.sum(np.exp(self.param_t*self.f_pcost - const_t)))
@@ -281,14 +276,17 @@ class matrix_query:
 
     def derivative(self):
         """Calculate derivatives."""
-        const_k = self.param_k * np.max(self.f_var)
-        exp_k = np.exp(self.param_k*self.f_var - const_k)
-        self.g_var = (exp_k/self.var_bound*self.mat_index.T) @ self.mat_index
+        self.param_k = self.param_t
+        const_k = self.param_k * np.max(self.f_pcost)
+        exp_k = np.exp(self.param_k*self.f_pcost - const_k)
+        # self.g_var = (exp_k*self.mat_basis) @ self.mat_basis.T
+        self.g_var = np.diag(exp_k)
 
-        const_t = np.max(self.param_t * self.f_pcost)
-        self.mat_bix = self.invcov.T @ self.mat_basis
-        exp_t = np.exp(self.param_t*self.f_pcost-const_t)
-        self.g_pcost = -(exp_t*self.mat_bix) @ self.mat_bix.T
+        const_t = np.max(self.param_t * self.f_var)
+        # self.mat_ix = self.mat_index @ self.inv_X
+        self.mat_ix = self.inv_X @ self.mat_index.T
+        exp_t = np.exp(self.param_t*self.f_var-const_t)
+        self.g_pcost = -(exp_t / self.var_bound * self.mat_ix) @ self.mat_ix.T
 
         coef_k = self.param_k/np.sum(exp_k)
         coef_t = self.param_t/np.sum(exp_t)
@@ -300,17 +298,17 @@ class matrix_query:
         return vec_grad
 
     def _loss_and_grad(self, params):
-        self.cov = np.reshape(params, [self.size_n, self.size_n], 'F')
-        if not is_pos_def(self.cov):
-            self.cov = (self.cov + self.cov.T) / 2.0
-            self.invcov = np.linalg.solve(self.cov, self.mat_id)
+        self.X = np.reshape(params, [self.size_n, self.size_n], 'F')
+        if not is_pos_def(self.X):
+            self.X = (self.X + self.X.T) / 2.0 + self.mat_id
+            self.inv_X = np.linalg.solve(self.X, self.mat_id)
             self.f_var = self.func_var()
             self.f_pcost = self.func_pcost()
             loss = self.obj()
             g = self.derivative()
             return loss * 100, np.zeros_like(g)
 
-        self.invcov = np.linalg.solve(self.cov, self.mat_id)
+        self.inv_X = np.linalg.solve(self.X, self.mat_id)
         self.f_var = self.func_var()
         self.f_pcost = self.func_pcost()
 
@@ -325,7 +323,7 @@ class matrix_query:
         opts = {'maxcor': 1}
 
         for iters in range(100):
-            x = np.reshape(self.cov, [-1], 'F')
+            x = np.reshape(self.X, [-1], 'F')
             res = optimize.minimize(self._loss_and_grad, x, jac=True, method='L-BFGS-B', options=opts)
             self._params = res.x
 
@@ -335,31 +333,15 @@ class matrix_query:
             self.param_t = self.args.MU * self.param_t
             self.param_k = self.args.MU * self.param_t
             print('update t: {0}'.format(self.param_t))
-            # print(self.cov)
+            # print(self.X)
 
         return res.fun
-
-
-def func_var(cov, mat_index):
-    """
-    Inequality constraint function for variance.
-
-    Parameters
-    ----------
-    self.var_bound : variance bound
-    self.mat_index : the index matrix
-    self.cov : the co-variance matrix
-    """
-    # d = np.diag(self.mat_index @ self.cov @ self.mat_index.T)
-    vec_d = ((mat_index @ cov) * mat_index).sum(axis=1)
-    # vec_d = np.diag(self.cov)
-    return vec_d
 
 
 if __name__ == "__main__":
     np.set_printoptions(precision=3)
     np.random.seed(0)
-    k = 1000
+    k = 100
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
@@ -382,11 +364,10 @@ if __name__ == "__main__":
 
     mat_opt = matrix_query(args, basis, index, bound)
     mat_opt.optimize()
-    mat_cov = mat_opt.cov/np.max(mat_opt.f_var)
 
-    pmat_CA = np.linalg.inv(mat_cov)
-    # ensure that the privacy cost is 1
-    pmat_CA = pmat_CA / pmat_CA[0, 0]
+    pcost = np.max(np.diag(mat_opt.X))
+    pmat_CA = mat_opt.X/pcost
+
     cov = np.linalg.inv(pmat_CA)
     B_inv = np.linalg.cholesky(cov)
     B = np.linalg.inv(B_inv)

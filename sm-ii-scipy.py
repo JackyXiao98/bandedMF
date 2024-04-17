@@ -31,7 +31,6 @@ from scipy import optimize
 from scipy import sparse
 from scipy.sparse.linalg import spsolve_triangular
 from scipy.linalg.lapack import dpotrf, dpotri
-from utils import *
 
 
 """
@@ -258,6 +257,7 @@ class matrix_query:
         # d = np.diag(self.mat_basis.T @ self.invcov @ self.mat_basis)
         vec_d = ((self.mat_basis.T @ self.invcov) * self.mat_basis.T).sum(
             axis=1)
+        # vec_d = np.diag(self.invcov)
         # vec_d = np.triu(self.invcov.cumsum(axis=1)).sum(axis=0)
         return vec_d
 
@@ -302,7 +302,7 @@ class matrix_query:
     def _loss_and_grad(self, params):
         self.cov = np.reshape(params, [self.size_n, self.size_n], 'F')
         if not is_pos_def(self.cov):
-            self.cov = (self.cov + self.cov.T) / 2.0
+            self.cov = (self.cov + self.cov.T) / 2.0 + self.mat_id
             self.invcov = np.linalg.solve(self.cov, self.mat_id)
             self.f_var = self.func_var()
             self.f_pcost = self.func_pcost()
@@ -340,26 +340,10 @@ class matrix_query:
         return res.fun
 
 
-def func_var(cov, mat_index):
-    """
-    Inequality constraint function for variance.
-
-    Parameters
-    ----------
-    self.var_bound : variance bound
-    self.mat_index : the index matrix
-    self.cov : the co-variance matrix
-    """
-    # d = np.diag(self.mat_index @ self.cov @ self.mat_index.T)
-    vec_d = ((mat_index @ cov) * mat_index).sum(axis=1)
-    # vec_d = np.diag(self.cov)
-    return vec_d
-
-
 if __name__ == "__main__":
     np.set_printoptions(precision=3)
     np.random.seed(0)
-    k = 1000
+    k = 20
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
@@ -382,9 +366,9 @@ if __name__ == "__main__":
 
     mat_opt = matrix_query(args, basis, index, bound)
     mat_opt.optimize()
-    mat_cov = mat_opt.cov/np.max(mat_opt.f_var)
+    # mat_cov = mat_opt.cov/np.max(mat_opt.f_var)
 
-    pmat_CA = np.linalg.inv(mat_cov)
+    pmat_CA = mat_opt.invcov
     # ensure that the privacy cost is 1
     pmat_CA = pmat_CA / pmat_CA[0, 0]
     cov = np.linalg.inv(pmat_CA)
