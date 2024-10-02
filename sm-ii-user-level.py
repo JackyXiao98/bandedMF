@@ -34,10 +34,6 @@ from scipy.linalg.lapack import dpotrf, dpotri
 
 
 """
-The optimization variable is X = Sigma^{-1}.
-We assume basis matrix B = I. Need to change func_var and gradient if B != I.
-
-
 Todo tasks
 
 * [Done] If not PSD, set a large loss, set the gradient to 0.
@@ -48,6 +44,8 @@ Todo tasks
 * [Done] Choose different variance bounds.
 * Banded matrix, use masks.
 
+In this file, we use X = Sigma^{-1} as the variable.
+The sensitivity is calculated based on user-level adjacency.
 
 """
 
@@ -183,6 +181,20 @@ def gm_variance(W, A, s):
     return a
 
 
+def generate_binary_combinations(n):
+    # Generate all possible integers from 0 to 2^n - 1
+    num_combinations = 2**n
+    binary_combinations = np.arange(num_combinations)
+
+    # Convert integers to binary strings with leading zeros
+    binary_strings = [format(i, '0' + str(n) + 'b') for i in binary_combinations]
+
+    # Convert binary strings to numpy arrays of {-1, 1}
+    binary_matrix = np.array([[int(bit) * 2 - 1 for bit in binary_string] for binary_string in binary_strings])
+
+    return -binary_matrix.T
+
+
 class matrix_query:
     """Class for matrix query optimization."""
 
@@ -258,8 +270,8 @@ class matrix_query:
         self.invcov : the inverse of the co-variance matrix X
         """
         # vec_d = np.diag(self.mat_basis.T @ self.X @ self.mat_basis)
-        # vec_d = ((self.mat_basis.T @ self.X) * self.mat_basis.T).sum(axis=1)
-        vec_d = np.diag(self.X)
+        vec_d = ((self.mat_basis.T @ self.X) * self.mat_basis.T).sum(axis=1)
+        # vec_d = np.diag(self.X)
         return vec_d
 
     def obj(self):
@@ -283,8 +295,8 @@ class matrix_query:
         self.param_k = self.param_t
         const_k = self.param_k * np.max(self.f_pcost)
         exp_k = np.exp(self.param_k*self.f_pcost - const_k)
-        # self.g_var = (exp_k*self.mat_basis) @ self.mat_basis.T
-        self.g_var = np.diag(exp_k)
+        self.g_var = (exp_k*self.mat_basis) @ self.mat_basis.T
+        # self.g_var = np.diag(exp_k)
 
         const_t = np.max(self.param_t * self.f_var)
         # self.mat_ix = self.mat_index @ self.inv_X
@@ -349,7 +361,9 @@ if __name__ == "__main__":
     # work = np.eye(k)
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
-    bound = np.ones(param_m)*1
+    # bound = np.ones(param_m)*1
+    # bound = np.arange(1, k+1)
+    bound = np.array([0.4, 1, 2.8, 4])
     # upper = 3
     # diag = np.arange(0.0, upper, upper/k) + 1.0
     # bound = np.array(diag)[::-1]
@@ -364,19 +378,26 @@ if __name__ == "__main__":
     args.TOL = 1e-5
 
     index = work
-    basis = np.eye(param_n)
+    # basis = np.eye(param_n)
+    basis = generate_binary_combinations(k)
+    print(basis)
 
     mat_opt = matrix_query(args, basis, index, bound)
     mat_opt.optimize()
 
-    pcost = np.max(np.diag(mat_opt.X))
+    # pcost = np.max(np.diag(mat_opt.X))
+    pmat = basis.T @ mat_opt.X @ basis
+    pcost = np.max(np.diag(pmat))
     pmat_CA = mat_opt.X/pcost
 
     cov = np.linalg.inv(pmat_CA)
     B_inv = np.linalg.cholesky(cov)
     B = np.linalg.inv(B_inv)
+    print("cov inv: \n", pmat_CA)
 
     L = work @ B_inv
     var = np.diag(L @ L.T)
     print("sum of var: ", np.sum(var))
     print("max of var: ", np.max(var))
+
+    breakpoint()
