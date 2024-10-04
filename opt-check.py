@@ -8,13 +8,13 @@ def objective(x):
 # Define the constraints
 constraints = [
     {'type': 'ineq', 'fun': lambda x: x[0]},
-    {'type': 'ineq', 'fun': lambda x: 0.4 - x[0]},
+    {'type': 'ineq', 'fun': lambda x: 1 - x[0]},
     {'type': 'ineq', 'fun': lambda x: x[1]},
     {'type': 'ineq', 'fun': lambda x: 1 - x[0] - x[1]},
     {'type': 'ineq', 'fun': lambda x: x[2]},
-    {'type': 'ineq', 'fun': lambda x: 2.8 - x[0] - x[1] - x[2]},
+    {'type': 'ineq', 'fun': lambda x: 1 - x[0] - x[1] - x[2]},
     {'type': 'ineq', 'fun': lambda x: x[3]},
-    {'type': 'ineq', 'fun': lambda x: 4 - x[0] - x[1] - x[2] - x[3]}
+    {'type': 'ineq', 'fun': lambda x: 1 - x[0] - x[1] - x[2] - x[3]}
 ]
 
 # Initial guess for the variables

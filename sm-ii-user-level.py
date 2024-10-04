@@ -362,8 +362,9 @@ if __name__ == "__main__":
     work = np.tril(np.ones([k, k]))
     param_m, param_n = work.shape
     # bound = np.ones(param_m)*1
-    # bound = np.arange(1, k+1)
-    bound = np.array([0.4, 1, 2.8, 4])
+    bound = np.arange(1, k+1)
+    # bound = np.array([0.4, 1, 2.8, 4])
+    # bound = np.array([4, 3, 2, 1])
     # upper = 3
     # diag = np.arange(0.0, upper, upper/k) + 1.0
     # bound = np.array(diag)[::-1]
@@ -399,5 +400,6 @@ if __name__ == "__main__":
     var = np.diag(L @ L.T)
     print("sum of var: ", np.sum(var))
     print("max of var: ", np.max(var))
+    print("var: \n", var)
 
     breakpoint()
